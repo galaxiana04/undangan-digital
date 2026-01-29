@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Invitation;
+use App\Models\Wish;
 
 class InvitationController extends Controller
 {
@@ -43,5 +44,58 @@ class InvitationController extends Controller
 
         // 3. Redirect ke halaman undangan yang barusan dibuat
         return redirect('/' . $request->slug);
+    }
+    // MENYIMPAN UCAPAN TAMU
+    public function storeWish(Request $request)
+    {
+        // 1. Validasi
+        $request->validate([
+            'invitation_id' => 'required',
+            'guest_name' => 'required',
+            'message' => 'required',
+            'attendance' => 'required',
+        ]);
+
+        // 2. Simpan ke Database
+        Wish::create($request->all());
+
+        // 3. Kembali ke halaman undangan (dengan pesan sukses)
+        return back()->with('success', 'Terima kasih, ucapan Anda telah terkirim!');
+    }
+    // MENAMPILKAN HALAMAN PILIH TEMPLATE
+    public function katalog()
+    {
+        // Data Template (Ceritanya ini database produk Mbak Riza)
+        $templates = collect([
+            (object)[
+                'code' => 'flower-pink',
+                'name' => 'Flower Pink',
+                'type' => 'Free',
+                'price' => 'Gratis',
+                'color' => 'bg-pink-100', // Warna background preview
+                'image' => 'https://via.placeholder.com/300x400/fbcfe8/db2777?text=Flower+Pink', // Nanti diganti foto asli
+                'features' => ['Simple', 'Clean Design']
+            ],
+            (object)[
+                'code' => 'rustic-brown',
+                'name' => 'Rustic Brown',
+                'type' => 'Premium',
+                'price' => 'Rp 49.000',
+                'color' => 'bg-amber-100',
+                'image' => 'https://via.placeholder.com/300x400/fef3c7/b45309?text=Rustic+Brown',
+                'features' => ['Elegan', 'Warna Hangat', 'Musik']
+            ],
+            (object)[
+                'code' => 'elegant-gold',
+                'name' => 'Elegant Gold',
+                'type' => 'Luxury',
+                'price' => 'Rp 99.000',
+                'color' => 'bg-gray-800',
+                'image' => 'https://via.placeholder.com/300x400/1f2937/fbbf24?text=Elegant+Gold',
+                'features' => ['Mewah', 'Dark Mode', 'Full Animasi']
+            ],
+        ]);
+
+        return view('katalog', compact('templates'));
     }
 }
