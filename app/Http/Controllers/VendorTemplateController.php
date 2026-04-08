@@ -3,38 +3,73 @@
 namespace App\Http\Controllers;
 
 use App\Models\Template;
+use App\Models\Transaction;
+use App\Models\Withdrawal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class VendorTemplateController extends Controller
 {
-    // 1. Tampilkan Form Upload Karya
-    public function create()
+    /**
+     * Tampilkan Dashboard Khusus Vendor
+     */
+    public function dashboard()
     {
-        return view('vendor.templates.create');
+        $user = Auth::user();
+
+        // 1. Hitung Total Penjualan Kotor (Bruto)
+        $totalPenjualan = Transaction::whereHas('invitation.template', function ($q) use ($user) {
+            $q->where('user_id', $user->id);
+        })->where('status', 'PAID')->sum('amount');
+
+        // 2. Potong Komisi Platform 10% (Jatah Mbak Riza)
+        $komisiPlatform = $totalPenjualan * 0.10;
+        $pendapatanBersihVendor = $totalPenjualan - $komisiPlatform;
+
+        // 3. Hitung Total yang Sudah Berhasil Ditarik
+        $totalDitarik = Withdrawal::where('user_id', $user->id)
+            ->where('status', 'SUCCESS')
+            ->sum('amount');
+
+        // 4. Saldo Akhir yang Bisa Ditarik Vendor
+        $saldoVendor = $pendapatanBersihVendor - $totalDitarik;
+
+        // Data Tambahan untuk UI Dashboard
+        $templates = Template::where('user_id', $user->id)->latest()->get();
+        $transaksiTerbaru = Transaction::whereHas('invitation.template', function ($q) use ($user) {
+            $q->where('user_id', $user->id);
+        })->latest()->take(5)->get();
+
+        return view('vendor.dashboard', compact(
+            'saldoVendor',
+            'templates',
+            'transaksiTerbaru',
+            'totalPenjualan',
+            'komisiPlatform'
+        ));
     }
 
-    // 2. Proses Simpan Karya ke Database & Folder
+    /**
+     * Proses Simpan Template Baru
+     */
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',
-            'price' => 'required|numeric',
-            'thumbnail' => 'required|image|max:2048', // Maksimal 2MB
+            'price' => 'required|numeric|min:0',
+            'thumbnail' => 'required|image|mimes:jpeg,png,jpg|max:2048',
             'features' => 'required|string',
         ]);
 
-        // Simpan Gambar ke folder storage/app/public/templates
+        // Upload file ke storage
         $path = $request->file('thumbnail')->store('templates', 'public');
 
-        // Ubah fitur dari string (pisahan koma) menjadi array
+        // Bersihkan input fitur (koma menjadi array)
         $featuresArray = array_map('trim', explode(',', $request->features));
 
-        // Simpan ke database, TAPI otomatis masukkan vendor_id yang sedang login!
         Template::create([
-            'vendor_id' => Auth::id(), // <--- Kunci utamanya di sini!
+            'user_id' => Auth::id(),
             'name' => $request->name,
             'type' => $request->type,
             'price' => $request->price,
@@ -42,6 +77,41 @@ class VendorTemplateController extends Controller
             'features' => json_encode($featuresArray)
         ]);
 
-        return redirect()->route('dashboard')->with('success', 'Karya desainmu berhasil diunggah! Calon pengantin sekarang bisa melihatnya di Katalog.');
+        return redirect()->route('dashboard')->with('success', 'Template berhasil diunggah!');
+    }
+
+    /**
+     * Proses Permintaan Penarikan Saldo
+     */
+    public function withdraw(Request $request)
+    {
+        $user = Auth::user();
+
+        // Re-calculate Saldo untuk Keamanan (Security Check)
+        $totalPenjualan = Transaction::whereHas('invitation.template', function ($q) use ($user) {
+            $q->where('user_id', $user->id);
+        })->where('status', 'PAID')->sum('amount');
+
+        $pendapatanBersih = $totalPenjualan * 0.90; // 90% milik vendor
+        $totalDitarik = Withdrawal::where('user_id', $user->id)->where('status', 'SUCCESS')->sum('amount');
+        $saldoAktif = $pendapatanBersih - $totalDitarik;
+
+        $request->validate([
+            'amount' => 'required|numeric|min:10000|max:' . $saldoAktif,
+            'bank_name' => 'required|string',
+            'account_number' => 'required|string',
+            'account_name' => 'required|string', // Tambahkan nama pemilik rekening
+        ]);
+
+        Withdrawal::create([
+            'user_id' => $user->id,
+            'amount' => $request->amount,
+            'bank_name' => $request->bank_name,
+            'account_number' => $request->account_number,
+            'account_name' => $request->account_name,
+            'status' => 'PENDING'
+        ]);
+
+        return back()->with('success', 'Permintaan penarikan saldo telah dikirim ke Admin!');
     }
 }

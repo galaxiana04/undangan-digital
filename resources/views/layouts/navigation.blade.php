@@ -4,13 +4,28 @@
         <div class="flex justify-between h-16">
             <div class="flex">
                 <div class="shrink-0 flex items-center">
-                    <a href="{{ route('home') }}" class="flex items-center gap-2 group">
-                        <div
-                            class="w-8 h-8 bg-teal-600 text-white rounded-lg flex items-center justify-center font-bold text-lg group-hover:bg-teal-700 transition">
-                            R</div>
-                        <span class="font-bold text-xl tracking-tight text-stone-800 hidden sm:block">Riza Sukma<span
-                                class="text-teal-600">.inv</span></span>
-                    </a>
+                    <div class="shrink-0 flex items-center">
+                        <a href="{{ route('home') }}" class="flex items-center gap-2 group">
+                            <div class="shrink-0 flex items-center">
+                                <a href="{{ route('home') }}" class="flex items-center gap-3 group">
+                                    <div class="shrink-0 flex items-center">
+                                        <a href="{{ route('home') }}" class="flex items-center gap-3">
+                                            <img src="{{ asset('images/logo-toko.png') }}" alt="Logo"
+                                                class="h-10 w-auto">
+
+                                            <div class="flex flex-col border-l border-stone-200 pl-3">
+                                                <span
+                                                    class="font-bold text-lg leading-none text-teal-900 uppercase tracking-tight">Riza
+                                                    Sukma</span>
+                                                <span
+                                                    class="text-[10px] font-bold text-teal-600 uppercase tracking-[0.2em]">Invitation</span>
+                                            </div>
+                                        </a>
+                                    </div>
+                                </a>
+                            </div>
+                        </a>
+                    </div>
                 </div>
 
                 <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">

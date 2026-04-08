@@ -57,6 +57,13 @@
                                         {{ $item->price == 0 ? 'Gratis' : 'Rp ' . number_format($item->price, 0, ',', '.') }}
                                     </td>
                                     <td class="px-6 py-4 text-center flex justify-center gap-2">
+                                    <td class="px-6 py-4 text-center flex justify-center gap-2">
+                                        <a href="{{ route('admin.templates.edit', $item->id) }}"
+                                            class="bg-amber-50 text-amber-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-amber-500 hover:text-white transition"
+                                            title="Edit">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </a>
+
                                         <form action="{{ route('admin.templates.destroy', $item->id) }}" method="POST"
                                             onsubmit="return confirm('Yakin ingin menghapus template ini?');">
                                             @csrf
@@ -67,6 +74,7 @@
                                                 <i class="fa-solid fa-trash"></i>
                                             </button>
                                         </form>
+                                    </td>
                                     </td>
                                 </tr>
                             @empty

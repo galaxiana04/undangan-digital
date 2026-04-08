@@ -1,3 +1,32 @@
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div
+        class="bg-gradient-to-br from-teal-600 to-teal-800 p-8 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
+        <div class="relative z-10">
+            <p class="text-teal-100 text-xs font-bold uppercase tracking-widest mb-2">Saldo Bisa Ditarik</p>
+            <h3 class="text-4xl font-black mb-6">Rp {{ number_format($saldoVendor, 0, ',', '.') }}</h3>
+            <button onclick="document.getElementById('modalWithdraw').classList.remove('hidden')"
+                class="bg-white text-teal-700 px-6 py-3 rounded-full font-bold text-sm hover:bg-teal-50 transition shadow-lg">
+                Tarik Saldo <i class="fa-solid fa-paper-plane ml-2"></i>
+            </button>
+        </div>
+        <i class="fa-solid fa-wallet absolute -bottom-10 -right-10 text-9xl text-white/10 rotate-12"></i>
+    </div>
+
+    <div class="bg-white p-8 rounded-[2rem] border border-stone-100 shadow-sm flex flex-col justify-center">
+        <h4 class="text-stone-400 text-[10px] font-bold uppercase mb-4">Metode Pencairan</h4>
+        <div class="flex items-center gap-4">
+            <div
+                class="w-12 h-12 bg-stone-50 rounded-2xl flex items-center justify-center text-teal-600 border border-stone-100">
+                <i class="fa-solid fa-university text-xl"></i>
+            </div>
+            <div>
+                <p class="font-bold text-stone-800">Transfer Bank Manual</p>
+                <p class="text-xs text-stone-500 italic">Proses 1-3 hari kerja</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-teal-800 leading-tight">
@@ -68,7 +97,8 @@
                                 </div>
                                 <div>
                                     <h4 class="font-serif font-bold text-xl text-gray-800">{{ $invitation->groom_nickname }} &
-                                        {{ $invitation->bride_nickname }}</h4>
+                                        {{ $invitation->bride_nickname }}
+                                    </h4>
                                     <div class="flex items-center gap-2 mt-1">
                                         <a href="{{ url('/' . $invitation->slug) }}" target="_blank"
                                             class="text-xs text-teal-600 hover:underline font-mono bg-white px-2 py-1 rounded border border-teal-100">
@@ -172,6 +202,45 @@
                 @endforeach
             @endif
 
+        </div>
+    </div>
+    <div id="modalWithdraw" class="fixed inset-0 z-[60] hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-stone-900/60 backdrop-blur-sm"
+                onclick="this.parentElement.parentElement.classList.add('hidden')"></div>
+
+            <div class="relative bg-white w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl">
+                <h3 class="text-2xl font-serif font-bold text-stone-800 mb-2">Tarik Saldo 💸</h3>
+                <p class="text-stone-500 text-sm mb-6">Pastikan data rekening sudah benar agar proses transfer lancar.
+                </p>
+
+                <form action="{{ route('vendor.withdraw.store') }}" method="POST" class="space-y-5">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-bold text-stone-400 uppercase mb-2">Nominal Penarikan</label>
+                        <input type="number" name="amount" max="{{ $saldoVendor }}" placeholder="Min. Rp 10.000"
+                            class="w-full border-stone-100 bg-stone-50 rounded-2xl focus:ring-teal-500 font-bold text-lg">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-stone-400 uppercase mb-2">Nama Bank</label>
+                            <input type="text" name="bank_name" placeholder="BCA/BRI/BNI"
+                                class="w-full border-stone-100 bg-stone-50 rounded-xl text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-stone-400 uppercase mb-2">No. Rekening</label>
+                            <input type="text" name="account_number"
+                                class="w-full border-stone-100 bg-stone-50 rounded-xl text-sm">
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-teal-600 text-white py-4 rounded-2xl font-bold shadow-lg hover:bg-teal-700 transition">
+                        Konfirmasi Penarikan
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </x-app-layout>

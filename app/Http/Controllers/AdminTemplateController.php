@@ -62,4 +62,43 @@ class AdminTemplateController extends Controller
 
         return back()->with('success', 'Template berhasil dihapus!');
     }
+    // 5. EDIT TEMPLATE
+    public function edit($id)
+    {
+        $template = Template::findOrFail($id);
+        return view('admin.templates.edit', compact('template'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $template = Template::findOrFail($id);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'required|string',
+            'price' => 'required|numeric',
+            'features' => 'required|string',
+        ]);
+
+        $featuresArray = array_map('trim', explode(',', $request->features));
+
+        // Update data dasar
+        $template->name = $request->name;
+        $template->type = $request->type;
+        $template->price = $request->price;
+        $template->features = json_encode($featuresArray);
+
+        // Kalau ada upload thumbnail baru, ganti yang lama
+        if ($request->hasFile('thumbnail')) {
+            // Hapus foto lama (opsional tapi bagus biar ga menumpuk)
+            Storage::disk('public')->delete($template->thumbnail);
+
+            $path = $request->file('thumbnail')->store('templates', 'public');
+            $template->thumbnail = $path;
+        }
+
+        $template->save();
+
+        return redirect()->route('admin.templates.index')->with('success', 'Template berhasil diperbarui!');
+    }
 }
