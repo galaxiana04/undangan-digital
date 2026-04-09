@@ -8,6 +8,7 @@ use App\Models\Invitation;
 use App\Models\Template;
 use App\Models\Transaction;
 
+
 // --- 1. PUBLIK (Bisa Diakses Tanpa Login) ---
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/katalog-tema', [InvitationController::class, 'katalog'])->name('katalog');
@@ -19,35 +20,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         $user = auth()->user();
 
-        // Jika yang login adalah Admin (Pengelola Web)
         if ($user->role === 'admin') {
             return view('admin.dashboard');
-        }
-        // Jika yang login adalah Vendor (Penjual Desain)
-        elseif ($user->role === 'vendor') {
-            // TARIK DATA KARYA VENDOR DARI DATABASE
-            $templates = Template::where('vendor_id', $user->id)->latest()->get();
-
-            // MESIN KALKULATOR UANG (Hanya hitung yang statusnya PAID)
-            $totalPendapatan = Transaction::where('vendor_id', $user->id)
-                ->where('status', 'PAID')
-                ->sum('amount');
-
-            // HITUNG BERAPA KALI LAKU TERJUAL
-            $totalTerjual = Transaction::where('vendor_id', $user->id)
-                ->where('status', 'PAID')
-                ->count();
-
-            // AMBIL RIWAYAT PEMBELI TERBARU (Maksimal 5)
-            $transaksiTerbaru = Transaction::where('vendor_id', $user->id)
-                ->where('status', 'PAID')
-                ->with('user') // Ambil data Catin yang beli
-                ->latest()
-                ->take(5)
-                ->get();
-
-            // Kirim semua data hasil hitungan ke tampilan Dashboard Vendor
-            return view('vendor.dashboard', compact('templates', 'totalPendapatan', 'totalTerjual', 'transaksiTerbaru'));
+        } elseif ($user->role === 'vendor') {
+            // Langsung lempar ke Controller saja biar rapi
+            return redirect()->route('vendor.dashboard');
+        } else {
+            // Customer biasa
+            $invitations = App\Models\Invitation::where('user_id', $user->id)->get();
+            return view('dashboard', compact('invitations'));
         }
     })->name('dashboard');
 
@@ -81,6 +62,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // --- FITUR ADMIN ---
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('templates', App\Http\Controllers\AdminTemplateController::class);
+
+        // --- TAMBAHKAN INI UNTUK FIX ERROR 404 TADI ---
+        Route::get('/withdrawals', [App\Http\Controllers\Admin\WithdrawalController::class, 'index'])->name('withdrawals.index');
+        Route::put('/withdrawals/{id}', [App\Http\Controllers\Admin\WithdrawalController::class, 'update'])->name('withdrawals.update');
+    });
+
+    // --- FITUR VENDOR (UPDATE KODE MBAK RIZA) ---
+    Route::prefix('vendor')->name('vendor.')->group(function () {
+        Route::get('/dashboard', [App\Http\Controllers\VendorTemplateController::class, 'dashboard'])->name('dashboard');
+        Route::get('/upload-karya', [App\Http\Controllers\VendorTemplateController::class, 'create'])->name('templates.create');
+        Route::post('/simpan-karya', [App\Http\Controllers\VendorTemplateController::class, 'store'])->name('templates.store');
+
+        // Rute untuk vendor minta tarik uang
+        Route::post('/withdraw', [App\Http\Controllers\VendorTemplateController::class, 'withdraw'])->name('withdraw.store');
     });
 
     // --- PROFILE BAWAAN BREEZE ---

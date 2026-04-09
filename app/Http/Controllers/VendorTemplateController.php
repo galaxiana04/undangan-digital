@@ -7,7 +7,8 @@ use App\Models\Transaction;
 use App\Models\Withdrawal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\Storage;
+use App\Models\DesignRequest;
 class VendorTemplateController extends Controller
 {
     /**
@@ -17,35 +18,47 @@ class VendorTemplateController extends Controller
     {
         $user = Auth::user();
 
-        // 1. Hitung Total Penjualan Kotor (Bruto)
-        $totalPenjualan = Transaction::whereHas('invitation.template', function ($q) use ($user) {
-            $q->where('user_id', $user->id);
-        })->where('status', 'PAID')->sum('amount');
+        // 1. Ambil data transaksi (Hanya yang PAID untuk hitungan saldo)
+        $transaksiTerbaru = Transaction::whereHas('invitation.template', function ($q) use ($user) {
+            $q->where('vendor_id', $user->id);
+        })
+            ->with(['user', 'invitation.template'])
+            ->latest()
+            ->get();
 
-        // 2. Potong Komisi Platform 10% (Jatah Mbak Riza)
+        // 2. Kalkulasi Keuangan
+        $totalPenjualan = $transaksiTerbaru->where('status', 'PAID')->sum('amount');
         $komisiPlatform = $totalPenjualan * 0.10;
         $pendapatanBersihVendor = $totalPenjualan - $komisiPlatform;
 
-        // 3. Hitung Total yang Sudah Berhasil Ditarik
+        // 3. HITUNG JUMLAH TERJUAL
+        $totalTerjual = $transaksiTerbaru->where('status', 'PAID')->count();
+
+        // 4. Hitung Penarikan
         $totalDitarik = Withdrawal::where('user_id', $user->id)
             ->where('status', 'SUCCESS')
             ->sum('amount');
 
-        // 4. Saldo Akhir yang Bisa Ditarik Vendor
+        // 5. Saldo Akhir
         $saldoVendor = $pendapatanBersihVendor - $totalDitarik;
 
-        // Data Tambahan untuk UI Dashboard
-        $templates = Template::where('user_id', $user->id)->latest()->get();
-        $transaksiTerbaru = Transaction::whereHas('invitation.template', function ($q) use ($user) {
-            $q->where('user_id', $user->id);
-        })->latest()->take(5)->get();
+        // 6. Daftar Template
+        $templates = Template::where('vendor_id', $user->id)->latest()->get();
+
+        // 7. AMBIL DATA REQUEST EDIT KUSTOM (TUGAS VENDOR) -- INI YANG BARU
+        $designRequests = DesignRequest::where('vendor_id', $user->id)
+            ->with(['invitation.user', 'invitation.template']) // Eager loading agar tidak berat
+            ->latest()
+            ->get();
 
         return view('vendor.dashboard', compact(
             'saldoVendor',
             'templates',
             'transaksiTerbaru',
             'totalPenjualan',
-            'komisiPlatform'
+            'komisiPlatform',
+            'totalTerjual',
+            'designRequests' // PASTIKAN INI IKUT DIKIRIM KE BLADE
         ));
     }
 
@@ -69,7 +82,7 @@ class VendorTemplateController extends Controller
         $featuresArray = array_map('trim', explode(',', $request->features));
 
         Template::create([
-            'user_id' => Auth::id(),
+            'vendor_id' => Auth::id(), // Gunakan vendor_id sesuai database Mbak
             'name' => $request->name,
             'type' => $request->type,
             'price' => $request->price,
@@ -89,7 +102,7 @@ class VendorTemplateController extends Controller
 
         // Re-calculate Saldo untuk Keamanan (Security Check)
         $totalPenjualan = Transaction::whereHas('invitation.template', function ($q) use ($user) {
-            $q->where('user_id', $user->id);
+            $q->where('vendor_id', $user->id);
         })->where('status', 'PAID')->sum('amount');
 
         $pendapatanBersih = $totalPenjualan * 0.90; // 90% milik vendor
@@ -100,7 +113,7 @@ class VendorTemplateController extends Controller
             'amount' => 'required|numeric|min:10000|max:' . $saldoAktif,
             'bank_name' => 'required|string',
             'account_number' => 'required|string',
-            'account_name' => 'required|string', // Tambahkan nama pemilik rekening
+            'account_name' => 'required|string',
         ]);
 
         Withdrawal::create([
